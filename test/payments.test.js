@@ -97,6 +97,20 @@ describe('payment capture and void', () => {
     expect(payment.captured_amount).toBe(40);
   });
 
+  test('capture is rejected for a voided payment and leaves its status unchanged', async () => {
+    const payment = authorizedPayment({ status: 'voided' });
+    seedPayment(payment);
+
+    const response = await request(app)
+      .post(`/payments/${paymentId}/capture`)
+      .send({ amount: 40 });
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(500);
+    expect(payment.status).toBe('voided');
+    expect(payment.captured_amount).toBeUndefined();
+  });
+
   test('voiding an authorized payment changes its status to voided', async () => {
     const payment = authorizedPayment();
     seedPayment(payment);

@@ -11,6 +11,13 @@ function readProjectFile(relativePath) {
 }
 
 describe('project scaffold acceptance criteria', () => {
+  test('project support and pull request CI target Node.js 20', () => {
+    const workflow = readProjectFile('.github/workflows/ci.yml');
+
+    expect(packageJson.engines.node).toMatch(/(?:^|[<>=\s])20(?:\.\d+)?(?:$|[<>=\s])/);
+    expect(workflow).toMatch(/node-version:\s*['"]?20(?:\.x)?['"]?/);
+  });
+
   test('npm test runs Jest and Supertest is available for HTTP tests', () => {
     expect(packageJson.scripts.test).toMatch(/^jest(?:\s|$)/);
     expect(packageJson.devDependencies.jest).toEqual(expect.any(String));

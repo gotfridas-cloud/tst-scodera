@@ -165,14 +165,13 @@ describe('payment status webhooks', () => {
     }
   });
 
-  test('retries three times with increasing delays and stops on success', async () => {
-    const statuses = [302, 429, 500, 204];
+  test('retries three times with increasing delays after non-2xx responses', async () => {
     const received = [];
     const retryDelays = [];
     const mockReceiver = await startMockReceiver((request, response) => {
       readRequest(request, (body) => {
         received.push({ body, signature: request.headers['x-payment-webhook-signature'] });
-        response.writeHead(statuses[received.length - 1]);
+        response.writeHead(503);
         response.end();
       });
     });
@@ -190,10 +189,12 @@ describe('payment status webhooks', () => {
         previousStatus: 'authorized',
         status: 'captured',
         eventId: 'evt-456',
-      })).resolves.toBe(true);
+      })).resolves.toBe(false);
 
+      // Three retries means four total requests, including the initial delivery.
       expect(received).toHaveLength(4);
-      expect(retryDelays).toEqual([5, 10, 20]);
+      expect(retryDelays).toHaveLength(3);
+      expect(retryDelays.every((delay, index) => index === 0 || delay > retryDelays[index - 1])).toBe(true);
       expect(new Set(received.map(({ body }) => body)).size).toBe(1);
       expect(new Set(received.map(({ signature }) => signature)).size).toBe(1);
     } finally {

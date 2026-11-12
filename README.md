@@ -40,6 +40,9 @@ npm start
 
 The server listens on port `3000` by default. Set the `PORT` environment variable to use a different port. The health endpoint is available at `GET http://localhost:3000/health` and responds with HTTP 200 and `{ "status": "ok" }`.
 
+## 3-D Secure simulation
+
+Create a 3-D Secure payment with `POST /payments`, sending `amount`, `currency`, and the application test card number `4000 0025 0000 3155` in `card_number` (or `card.number`):
 ## Create a payment
 
 Create a payment with `POST http://localhost:3000/payments`. Include a unique `Idempotency-Key` header and a JSON body:
@@ -47,6 +50,12 @@ Create a payment with `POST http://localhost:3000/payments`. Include a unique `I
 ```json
 {
   "amount": 1250,
+  "currency": "USD",
+  "card_number": "4000 0025 0000 3155"
+}
+```
+
+The response has status `requires_action` and includes a `redirect_url`. Complete the challenge with `POST /payments/{id}/3ds` and a JSON body of `{ "result": "success" }` or `{ "result": "fail" }`. Success changes the payment to `authorized`; failure changes it to `failed`. A challenge expires after ten minutes and changes to `failed`. A challenge submission when it is no longer pending returns HTTP 409.
   "currency": "EUR",
   "card": "4242424242424242"
 }

@@ -1,4 +1,12 @@
 const express = require('express');
+const { PaymentStore } = require('./paymentStore');
+const { createPaymentsRouter } = require('./payments');
+
+const app = express();
+const paymentStore = new PaymentStore();
+
+app.use(express.json());
+app.use(createPaymentsRouter(paymentStore));
 const createPaymentsRouter = require('./payments');
 const createPaymentStore = require('./paymentStore');
 

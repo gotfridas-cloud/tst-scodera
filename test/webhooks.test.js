@@ -47,7 +47,13 @@ describe('payment status webhooks', () => {
     const mockReceiver = await startMockReceiver((request, response) => {
       readRequest(request, (body) => {
         callOrder.push('webhook');
-        received.push(JSON.parse(body));
+        received.push({
+          body,
+          event: JSON.parse(body),
+          method: request.method,
+          path: request.url,
+          signature: request.headers['x-payment-webhook-signature'],
+        });
         response.writeHead(204);
         response.end();
       });
@@ -81,13 +87,20 @@ describe('payment status webhooks', () => {
       expect(callOrder).toEqual(['status update', 'webhook']);
       expect(received).toHaveLength(1);
       expect(received[0]).toMatchObject({
-        type: 'payment.status_changed',
-        data: {
-          paymentId: 'pay-status-change',
-          previousStatus: 'pending',
-          status: 'authorized',
+        method: 'POST',
+        path: '/',
+        event: {
+          type: 'payment.status_changed',
+          data: {
+            paymentId: 'pay-status-change',
+            previousStatus: 'pending',
+            status: 'authorized',
+          },
         },
       });
+      expect(received[0].signature).toBe(`sha256=${createHmac('sha256', 'test-secret')
+        .update(received[0].body)
+        .digest('hex')}`);
     } finally {
       await mockReceiver.close();
     }
@@ -202,12 +215,12 @@ describe('payment status webhooks', () => {
     }
   });
 
-  test('does not send another request after a successful response', async () => {
+  test('stops retrying after a successful response', async () => {
     let receivedCount = 0;
     const retryDelays = [];
     const mockReceiver = await startMockReceiver((_request, response) => {
       receivedCount += 1;
-      response.writeHead(200);
+      response.writeHead(receivedCount === 1 ? 503 : 200);
       response.end();
     });
 
@@ -215,6 +228,7 @@ describe('payment status webhooks', () => {
       const notify = createPaymentStatusWebhookNotifier({
         url: mockReceiver.url,
         secret: 'test-secret',
+        retryDelaysMs: [5, 10, 20],
         sleepImpl: async (delay) => retryDelays.push(delay),
       });
 
@@ -224,8 +238,8 @@ describe('payment status webhooks', () => {
         status: 'authorized',
       })).resolves.toBe(true);
 
-      expect(receivedCount).toBe(1);
-      expect(retryDelays).toEqual([]);
+      expect(receivedCount).toBe(2);
+      expect(retryDelays).toEqual([5]);
     } finally {
       await mockReceiver.close();
     }

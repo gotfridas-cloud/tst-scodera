@@ -37,6 +37,16 @@ Check JavaScript with ESLint:
 npm run lint
 ```
 
+## Run with Docker Compose
+
+Build the Node.js 20 image and start the service with:
+
+```sh
+docker compose up --build
+```
+
+The health endpoint is available at `http://localhost:3000/health`. Stop the service with `Ctrl+C`.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the ticket workflow and Definition of Done. The [changelog](CHANGELOG.md) records repository changes, and [docs/agent-log.md](docs/agent-log.md) records per-ticket agent work.

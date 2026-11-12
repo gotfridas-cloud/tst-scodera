@@ -1,3 +1,119 @@
+class PaymentStore {
+  constructor(payments = new Map()) {
+    this.payments = payments;
+  }
+
+  capture(id, requestedAmount) {
+    const payment = this.payments.get(id);
+
+const { randomUUID } = require('node:crypto');
+const { clearTimeout, setTimeout } = require('node:timers');
+
+const THREE_DS_CHALLENGE_TTL_MS = 10 * 60 * 1000;
+
+class PaymentStore {
+  constructor() {
+    this.payments = new Map();
+  }
+
+  create({ amount, currency }) {
+    const createdAt = Date.now();
+    const payment = {
+      id: randomUUID(),
+      amount,
+      currency,
+      status: 'requires_action',
+      created_at: new Date(createdAt).toISOString(),
+      challenge_expires_at: new Date(createdAt + THREE_DS_CHALLENGE_TTL_MS).toISOString(),
+    };
+
+    payment.timeout = setTimeout(() => this.expireChallenge(payment.id), THREE_DS_CHALLENGE_TTL_MS);
+    payment.timeout.unref?.();
+    this.payments.set(payment.id, payment);
+
+    return payment;
+  }
+
+  get(id) {
+    const payment = this.payments.get(id);
+
+    if (payment?.status === 'requires_action' && Date.now() >= Date.parse(payment.challenge_expires_at)) {
+      this.expireChallenge(id);
+    }
+
+    return payment;
+  }
+
+  completeChallenge(id, result) {
+    const payment = this.get(id);
+
+    if (!payment) {
+      return { kind: 'not_found' };
+    }
+
+    if (payment.status !== 'authorized') {
+      return { kind: 'conflict', payment };
+    }
+
+    const amount = requestedAmount === undefined ? payment.amount : requestedAmount;
+
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+      return { kind: 'invalid_amount', payment };
+    }
+
+    if (amount > payment.amount) {
+      return { kind: 'amount_exceeds_authorized', payment };
+    }
+
+    payment.captured_amount = amount;
+    payment.status = 'captured';
+    payment.captured_at = new Date().toISOString();
+
+    return { kind: 'captured', payment };
+  }
+
+  void(id) {
+    const payment = this.payments.get(id);
+
+    if (!payment) {
+      return { kind: 'not_found' };
+    }
+
+    if (payment.status !== 'authorized') {
+      return { kind: 'conflict', payment };
+    }
+
+    payment.status = 'voided';
+    payment.voided_at = new Date().toISOString();
+
+    return { kind: 'voided', payment };
+  }
+}
+
+module.exports = { PaymentStore };
+    if (payment.status !== 'requires_action') {
+      return { kind: 'conflict', payment };
+    }
+
+    clearTimeout(payment.timeout);
+    payment.status = result === 'success' ? 'authorized' : 'failed';
+    payment.challenge_completed_at = new Date().toISOString();
+
+    return { kind: 'completed', payment };
+  }
+
+  expireChallenge(id) {
+    const payment = this.payments.get(id);
+
+    if (payment?.status === 'requires_action') {
+      clearTimeout(payment.timeout);
+      payment.status = 'failed';
+      payment.failure_reason = 'challenge_timeout';
+    }
+  }
+}
+
+module.exports = { PaymentStore, THREE_DS_CHALLENGE_TTL_MS };
 const { createHmac, randomBytes, randomUUID } = require('node:crypto');
 
 const allowedTransitions = new Map([

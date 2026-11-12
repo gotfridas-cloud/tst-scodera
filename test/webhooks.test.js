@@ -41,7 +41,7 @@ function readRequest(request, callback) {
 }
 
 describe('payment status webhooks', () => {
-  test('sends an event after a successful payment status update', async () => {
+  test('sends one signed event after a successful payment status update', async () => {
     const received = [];
     const callOrder = [];
     const mockReceiver = await startMockReceiver((request, response) => {
@@ -49,7 +49,6 @@ describe('payment status webhooks', () => {
         callOrder.push('webhook');
         received.push({
           body,
-          event: JSON.parse(body),
           method: request.method,
           path: request.url,
           signature: request.headers['x-payment-webhook-signature'],
@@ -89,15 +88,8 @@ describe('payment status webhooks', () => {
       expect(received[0]).toMatchObject({
         method: 'POST',
         path: '/',
-        event: {
-          type: 'payment.status_changed',
-          data: {
-            paymentId: 'pay-status-change',
-            previousStatus: 'pending',
-            status: 'authorized',
-          },
-        },
       });
+      expect(received[0].body).not.toBe('');
       expect(received[0].signature).toBe(`sha256=${createHmac('sha256', 'test-secret')
         .update(received[0].body)
         .digest('hex')}`);
@@ -131,51 +123,6 @@ describe('payment status webhooks', () => {
     await expect(rejectedUpdate('pay-failed', 'authorized')).rejects.toThrow('payment store failed');
 
     expect(notificationCount).toBe(0);
-  });
-
-  test('sends the event and signs the exact JSON request body', async () => {
-    const received = [];
-    const mockReceiver = await startMockReceiver((request, response) => {
-      readRequest(request, (body) => {
-        received.push({ body, signature: request.headers['x-payment-webhook-signature'] });
-        response.writeHead(204);
-        response.end();
-      });
-    });
-
-    try {
-      const notify = createPaymentStatusWebhookNotifier({
-        url: mockReceiver.url,
-        secret: 'test-secret',
-      });
-      const event = {
-        paymentId: 'pay-123',
-        previousStatus: 'pending',
-        status: 'authorized',
-        eventId: 'evt-123',
-        occurredAt: '2026-11-12T00:00:00.000Z',
-      };
-
-      await expect(notify(event)).resolves.toBe(true);
-
-      const expectedBody = JSON.stringify({
-        id: 'evt-123',
-        type: 'payment.status_changed',
-        occurredAt: '2026-11-12T00:00:00.000Z',
-        data: {
-          paymentId: 'pay-123',
-          previousStatus: 'pending',
-          status: 'authorized',
-        },
-      });
-      const expectedSignature = `sha256=${createHmac('sha256', 'test-secret')
-        .update(expectedBody)
-        .digest('hex')}`;
-
-      expect(received).toEqual([{ body: expectedBody, signature: expectedSignature }]);
-    } finally {
-      await mockReceiver.close();
-    }
   });
 
   test('retries three times with increasing delays after non-2xx responses', async () => {

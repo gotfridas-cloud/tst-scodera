@@ -79,6 +79,7 @@ function createPaymentsRouter(paymentStore) {
       amount,
       currency,
       card,
+      body: request.body,
     });
 
     if (result.kind === 'conflict') {

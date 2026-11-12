@@ -5,9 +5,27 @@ function createPaymentStore() {
   const idempotencyEntries = new Map();
   const fingerprintSecret = randomBytes(32);
 
-  function fingerprint(body = {}) {
-    const { amount, currency, card } = body || {};
-    const requestBody = JSON.stringify({ amount, currency, card });
+  function canonicalize(value) {
+    if (Array.isArray(value)) {
+      return value.map(canonicalize);
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((key) => [key, canonicalize(value[key])]),
+      );
+    }
+
+    return value;
+  }
+
+  function fingerprint(body) {
+    const requestBody = JSON.stringify({
+      hasBody: body !== undefined,
+      body: body === undefined ? null : canonicalize(body),
+    });
 
     return createHmac('sha256', fingerprintSecret).update(requestBody).digest('hex');
   }
@@ -26,8 +44,7 @@ function createPaymentStore() {
       };
     },
 
-    create({ idempotencyKey, amount, currency, card }) {
-      const body = { amount, currency, card };
+    create({ idempotencyKey, amount, currency, card, body = { amount, currency, card } }) {
       const requestFingerprint = fingerprint(body);
       const existingEntry = idempotencyEntries.get(idempotencyKey);
 

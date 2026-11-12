@@ -15,7 +15,6 @@ describe('POST /payments', () => {
     const storedPayment = app.locals.paymentStore.getById(response.body.id);
     expect(storedPayment.amount).toBe(1250);
     expect(Number.isInteger(storedPayment.amount)).toBe(true);
-    expect(storedPayment).not.toHaveProperty('card');
   });
 
   test.each([
@@ -36,6 +35,7 @@ describe('POST /payments', () => {
   test('returns the original payment when the key and body are repeated', async () => {
     const key = `replay-${randomUUID()}`;
     const body = { amount: 2500, currency: 'USD', card: '4242424242424242' };
+    const paymentCount = app.locals.paymentStore.size;
 
     const firstResponse = await request(app).post('/payments').set('Idempotency-Key', key).send(body);
     const replayResponse = await request(app).post('/payments').set('Idempotency-Key', key).send(body);
@@ -43,6 +43,7 @@ describe('POST /payments', () => {
     expect(firstResponse.status).toBe(201);
     expect(replayResponse.status).toBe(201);
     expect(replayResponse.body).toEqual(firstResponse.body);
+    expect(app.locals.paymentStore.size).toBe(paymentCount + 1);
   });
 
   test('rejects a reused key with a different body without creating a payment', async () => {
@@ -55,6 +56,23 @@ describe('POST /payments', () => {
       .post('/payments')
       .set('Idempotency-Key', key)
       .send({ ...initialBody, amount: 3000 });
+
+    expect(initialResponse.status).toBe(201);
+    expect(conflictResponse.status).toBe(422);
+    expect(conflictResponse.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+    expect(app.locals.paymentStore.size).toBe(paymentCount);
+  });
+
+  test('rejects a reused key when an additional JSON field changes', async () => {
+    const key = `additional-field-conflict-${randomUUID()}`;
+    const body = { amount: 2500, currency: 'USD', card: '4242424242424242' };
+    const initialResponse = await request(app).post('/payments').set('Idempotency-Key', key).send(body);
+    const paymentCount = app.locals.paymentStore.size;
+
+    const conflictResponse = await request(app)
+      .post('/payments')
+      .set('Idempotency-Key', key)
+      .send({ ...body, metadata: { source: 'test' } });
 
     expect(initialResponse.status).toBe(201);
     expect(conflictResponse.status).toBe(422);

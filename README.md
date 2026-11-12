@@ -37,6 +37,10 @@ Create a payment with `POST http://localhost:3000/payments`. Include a unique `I
 
 `amount` is a positive integer in minor units, and `currency` must be `EUR`, `USD`, or `GBP`. The card value is currently checked for a 12–19 digit format and a valid Luhn checksum. The accepted test-card list remains to be defined by PAY-5. Successful requests return HTTP 201 with a payment `id` and `status: "pending"`. Repeating the same key and request returns the same payment; using the key with a different request returns HTTP 422. Validation failures return HTTP 400 with an error code in `error.code`.
 
+## Retrieve a payment
+
+Retrieve a payment with `GET http://localhost:3000/payments/{id}`. A stored payment returns HTTP 200 with its `id`, `status`, `amount`, `currency`, and `cardLast4` fields. The card number is not stored or returned; `cardLast4` contains only its final four digits. An unknown ID returns HTTP 404 with `error.code: "PAYMENT_NOT_FOUND"`.
+
 ## Tests and lint
 
 Run the Jest test suite, which uses Supertest for HTTP requests:

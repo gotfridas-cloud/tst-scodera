@@ -103,3 +103,44 @@ describe('POST /payments', () => {
     expect(response.body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
   });
 });
+
+describe('GET /payments/:id', () => {
+  test('returns the full stored payment with only the card last four digits', async () => {
+    const card = '4242 4242-4242 4242';
+    const createResponse = await request(app)
+      .post('/payments')
+      .set('Idempotency-Key', `retrieve-${randomUUID()}`)
+      .send({ amount: 1250, currency: 'EUR', card });
+
+    expect(createResponse.status).toBe(201);
+
+    const loggedMethods = ['debug', 'info', 'log', 'warn', 'error'];
+    const logSpies = loggedMethods.map((method) => jest.spyOn(console, method));
+
+    try {
+      const response = await request(app).get(`/payments/${createResponse.body.id}`);
+      const storedPayment = app.locals.paymentStore.getById(createResponse.body.id);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(storedPayment);
+      expect(response.body).toEqual({
+        id: createResponse.body.id,
+        status: 'pending',
+        amount: 1250,
+        currency: 'EUR',
+        cardLast4: '4242',
+      });
+      expect(JSON.stringify(response.body)).not.toContain('4242424242424242');
+      expect(logSpies.every((spy) => spy.mock.calls.length === 0)).toBe(true);
+    } finally {
+      logSpies.forEach((spy) => spy.mockRestore());
+    }
+  });
+
+  test('returns 404 for an unknown payment id', async () => {
+    const response = await request(app).get('/payments/unknown-payment-id');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: { code: 'PAYMENT_NOT_FOUND' } });
+  });
+});

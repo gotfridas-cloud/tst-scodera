@@ -60,6 +60,7 @@ function createPaymentStore() {
         status: 'pending',
         amount,
         currency,
+        cardLast4: card.replace(/[ -]/g, '').slice(-4),
       });
 
       payments.set(payment.id, payment);

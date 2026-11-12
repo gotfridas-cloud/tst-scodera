@@ -51,6 +51,7 @@ describe('payment status webhooks', () => {
           body,
           method: request.method,
           path: request.url,
+          contentType: request.headers['content-type'],
           signature: request.headers['x-payment-webhook-signature'],
         });
         response.writeHead(204);
@@ -88,8 +89,17 @@ describe('payment status webhooks', () => {
       expect(received[0]).toMatchObject({
         method: 'POST',
         path: '/',
+        contentType: 'application/json',
       });
       expect(received[0].body).not.toBe('');
+      expect(JSON.parse(received[0].body)).toMatchObject({
+        type: 'payment.status_changed',
+        data: {
+          paymentId: 'pay-status-change',
+          previousStatus: 'pending',
+          status: 'authorized',
+        },
+      });
       expect(received[0].signature).toBe(`sha256=${createHmac('sha256', 'test-secret')
         .update(received[0].body)
         .digest('hex')}`);
@@ -128,8 +138,10 @@ describe('payment status webhooks', () => {
   test('retries three times with increasing delays after non-2xx responses', async () => {
     const received = [];
     const retryDelays = [];
+    const deliveryTrace = [];
     const mockReceiver = await startMockReceiver((request, response) => {
       readRequest(request, (body) => {
+        deliveryTrace.push('request');
         received.push({ body, signature: request.headers['x-payment-webhook-signature'] });
         response.writeHead(503);
         response.end();
@@ -141,7 +153,10 @@ describe('payment status webhooks', () => {
         url: mockReceiver.url,
         secret: 'test-secret',
         retryDelaysMs: [5, 10, 20],
-        sleepImpl: async (delay) => retryDelays.push(delay),
+        sleepImpl: async (delay) => {
+          retryDelays.push(delay);
+          deliveryTrace.push(`delay:${delay}`);
+        },
       });
 
       await expect(notify({
@@ -153,8 +168,17 @@ describe('payment status webhooks', () => {
 
       // Three retries means four total requests, including the initial delivery.
       expect(received).toHaveLength(4);
-      expect(retryDelays).toHaveLength(3);
+      expect(retryDelays).toEqual([5, 10, 20]);
       expect(retryDelays.every((delay, index) => index === 0 || delay > retryDelays[index - 1])).toBe(true);
+      expect(deliveryTrace).toEqual([
+        'request',
+        'delay:5',
+        'request',
+        'delay:10',
+        'request',
+        'delay:20',
+        'request',
+      ]);
       expect(new Set(received.map(({ body }) => body)).size).toBe(1);
       expect(new Set(received.map(({ signature }) => signature)).size).toBe(1);
     } finally {

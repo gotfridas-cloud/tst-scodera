@@ -8,5 +8,6 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- PAY-7: Added capture and void operations for authorized payments, including atomic in-memory state transitions and amount validation.
 - PAY-1: Added the Node.js 20 Express scaffold, health endpoint, Jest/Supertest coverage, ESLint configuration, and pull request CI.
 - PAY-0: Added contribution workflow guidance, a pull request template, and per-ticket agent run logging.

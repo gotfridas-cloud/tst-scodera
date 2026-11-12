@@ -36,6 +36,16 @@ function isValidCardNumber(card) {
 function createPaymentsRouter(paymentStore) {
   const router = express.Router();
 
+  router.get('/:id', (request, response) => {
+    const payment = paymentStore.getById(request.params.id);
+
+    if (!payment) {
+      return response.status(404).json({ error: { code: 'PAYMENT_NOT_FOUND' } });
+    }
+
+    return response.status(200).json(payment);
+  });
+
   router.post('/', (request, response) => {
     const idempotencyKey = request.get('Idempotency-Key');
 

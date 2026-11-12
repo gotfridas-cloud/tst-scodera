@@ -24,6 +24,7 @@ module.exports = [
         console: 'readonly',
         describe: 'readonly',
         expect: 'readonly',
+        jest: 'readonly',
         module: 'readonly',
         process: 'readonly',
         require: 'readonly',

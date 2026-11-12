@@ -1,5 +1,11 @@
 const { createHmac, randomBytes, randomUUID } = require('node:crypto');
 
+const allowedTransitions = new Map([
+  ['pending', new Set(['authorized', 'failed', 'requires_action'])],
+  ['authorized', new Set(['captured', 'voided'])],
+  ['requires_action', new Set(['authorized', 'failed'])],
+]);
+
 function createPaymentStore() {
   const payments = new Map();
   const idempotencyEntries = new Map();
@@ -74,6 +80,22 @@ function createPaymentStore() {
 
     getById(id) {
       return payments.get(id);
+    },
+
+    transitionStatus(id, nextStatus) {
+      const payment = payments.get(id);
+
+      if (!allowedTransitions.get(payment?.status)?.has(nextStatus)) {
+        const error = new Error('Invalid payment status transition');
+        error.statusCode = 409;
+        error.code = 'INVALID_PAYMENT_STATUS_TRANSITION';
+        throw error;
+      }
+
+      const updatedPayment = Object.freeze({ ...payment, status: nextStatus });
+      payments.set(id, updatedPayment);
+
+      return updatedPayment;
     },
 
     get size() {

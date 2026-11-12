@@ -53,6 +53,20 @@ describe('payment capture and void', () => {
     });
   });
 
+  test('capture at exactly the authorized amount is accepted', async () => {
+    seedPayment(authorizedPayment());
+
+    const response = await request(app)
+      .post(`/payments/${paymentId}/capture`)
+      .send({ amount: authorizedAmount });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      captured_amount: authorizedAmount,
+      status: 'captured',
+    });
+  });
+
   test('capture above the authorized amount is rejected without over-capturing', async () => {
     const payment = authorizedPayment();
     seedPayment(payment);
@@ -94,7 +108,7 @@ describe('payment capture and void', () => {
     expect(payment.status).toBe('voided');
   });
 
-  test.each(['captured', 'voided'])(
+  test.each(['captured', 'voided', 'pending'])(
     'voiding a payment with status %s is rejected without changing its status',
     async (status) => {
       const payment = authorizedPayment({ status });

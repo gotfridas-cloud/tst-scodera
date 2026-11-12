@@ -25,9 +25,9 @@ The server listens on port `3000` by default. Set the `PORT` environment variabl
 
 ## Payment status webhooks
 
-Set `PAYMENT_WEBHOOK_URL` and `PAYMENT_WEBHOOK_SECRET` to enable signed payment status notifications. The app exposes `app.locals.notifyPaymentStatusChanged({ paymentId, previousStatus, status })` for a status handler to call after its status change succeeds. It posts a JSON `payment.status_changed` event and sends the HMAC-SHA256 signature of the exact request body in the `X-Payment-Webhook-Signature` header as `sha256=<hex>`.
+Set `PAYMENT_WEBHOOK_URL` and `PAYMENT_WEBHOOK_SECRET` to enable signed payment status notifications. A payment status handler can wrap its persistence operation with `app.locals.createPaymentStatusUpdateHandler(updateStatus)`. The wrapper sends an event after the store returns a changed payment and does not send one if the update fails or leaves the status unchanged. It posts a JSON `payment.status_changed` event and sends the HMAC-SHA256 signature of the exact request body in the `X-Payment-Webhook-Signature` header as `sha256=<hex>`.
 
-Delivery retries non-2xx responses and transport failures three times after the initial request, waiting 100 ms, 200 ms, and 400 ms. A 2xx response ends delivery. The notifier returns `true` on success and `false` after the retries are exhausted or when no URL is configured. Delivery is held in process memory and does not survive a restart. These event, configuration, signature, and retry conventions are provisional because PAY-8 did not specify a contract. This repository does not yet contain a payment status handler; the handler must call the notifier after a successful change.
+Delivery retries non-2xx responses and transport failures three times after the initial request, waiting 100 ms, 200 ms, and 400 ms. A 2xx response ends delivery. The notifier returns `true` on success and `false` after the retries are exhausted or when no URL is configured. Delivery is held in process memory and does not survive a restart. These event, configuration, signature, and retry conventions are provisional because PAY-8 did not specify a contract. This repository has no payment store or status route; status handlers must wrap their existing store update with the app's adapter.
 
 ## Tests and lint
 

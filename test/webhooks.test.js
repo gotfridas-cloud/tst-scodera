@@ -1,5 +1,6 @@
 const { createHmac } = require('node:crypto');
 const { createServer } = require('node:http');
+const { createApp } = require('../src/app');
 const { createPaymentStatusWebhookNotifier } = require('../src/webhooks');
 
 function startMockReceiver(handler) {
@@ -40,6 +41,85 @@ function readRequest(request, callback) {
 }
 
 describe('payment status webhooks', () => {
+  test('sends an event after a successful payment status update', async () => {
+    const received = [];
+    const callOrder = [];
+    const mockReceiver = await startMockReceiver((request, response) => {
+      readRequest(request, (body) => {
+        callOrder.push('webhook');
+        received.push(JSON.parse(body));
+        response.writeHead(204);
+        response.end();
+      });
+    });
+
+    try {
+      const app = createApp({
+        webhookNotifier: createPaymentStatusWebhookNotifier({
+          url: mockReceiver.url,
+          secret: 'test-secret',
+        }),
+      });
+      const persistedUpdates = [];
+      const updatePaymentStatus = app.locals.createPaymentStatusUpdateHandler(async (paymentId, status) => {
+        callOrder.push('status update');
+        persistedUpdates.push({ paymentId, status });
+        return {
+          paymentId,
+          previousStatus: 'pending',
+          status,
+        };
+      });
+
+      await expect(updatePaymentStatus('pay-status-change', 'authorized')).resolves.toEqual({
+        paymentId: 'pay-status-change',
+        previousStatus: 'pending',
+        status: 'authorized',
+      });
+
+      expect(persistedUpdates).toEqual([{ paymentId: 'pay-status-change', status: 'authorized' }]);
+      expect(callOrder).toEqual(['status update', 'webhook']);
+      expect(received).toHaveLength(1);
+      expect(received[0]).toMatchObject({
+        type: 'payment.status_changed',
+        data: {
+          paymentId: 'pay-status-change',
+          previousStatus: 'pending',
+          status: 'authorized',
+        },
+      });
+    } finally {
+      await mockReceiver.close();
+    }
+  });
+
+  test('does not send an event when the status update fails or leaves status unchanged', async () => {
+    let notificationCount = 0;
+    const notifyPaymentStatusChanged = async () => {
+      notificationCount += 1;
+    };
+    const app = createApp({ webhookNotifier: notifyPaymentStatusChanged });
+    const failedUpdate = app.locals.createPaymentStatusUpdateHandler(async () => null);
+    const unchangedUpdate = app.locals.createPaymentStatusUpdateHandler(async () => ({
+      paymentId: 'pay-unchanged',
+      previousStatus: 'authorized',
+      status: 'authorized',
+    }));
+    const rejectedUpdate = app.locals.createPaymentStatusUpdateHandler(async () => {
+      throw new Error('payment store failed');
+    });
+
+    await expect(failedUpdate('pay-missing', 'authorized')).resolves.toBeNull();
+    await expect(unchangedUpdate('pay-unchanged', 'authorized')).resolves.toEqual({
+      paymentId: 'pay-unchanged',
+      previousStatus: 'authorized',
+      status: 'authorized',
+    });
+    await expect(rejectedUpdate('pay-failed', 'authorized')).rejects.toThrow('payment store failed');
+
+    expect(notificationCount).toBe(0);
+  });
+
   test('sends the event and signs the exact JSON request body', async () => {
     const received = [];
     const mockReceiver = await startMockReceiver((request, response) => {

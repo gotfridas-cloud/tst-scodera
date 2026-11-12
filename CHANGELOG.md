@@ -8,5 +8,6 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- PAY-2: Added `POST /payments` with positive integer amount and currency validation, in-memory payment storage, and idempotency handling.
 - PAY-1: Added the Node.js 20 Express scaffold, health endpoint, Jest/Supertest coverage, ESLint configuration, and pull request CI.
 - PAY-0: Added contribution workflow guidance, a pull request template, and per-ticket agent run logging.

@@ -1,0 +1,246 @@
+openapi: 3.0.3
+info:
+  title: Payments API
+  version: 1.0.0
+  description: |
+    API for creating and retrieving in-memory payments. Payment data is lost when
+    the service process stops.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /health:
+    get:
+      summary: Check service health
+      operationId: getHealth
+      responses:
+        '200':
+          description: The service is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+              example:
+                status: ok
+  /payments:
+    post:
+      summary: Create a payment
+      operationId: createPayment
+      description: |
+        Creates a payment with `pending` status. `amount` is a positive safe
+        integer in minor currency units. `currency` must be `EUR`, `USD`, or
+        `GBP`. `card` must be a string that, after ASCII spaces and hyphens are
+        removed, contains 12 to 19 digits with a valid Luhn checksum. The API
+        stores and returns only the final four card digits.
+
+        The `Idempotency-Key` is trimmed before use. Repeating the same key
+        with the same JSON body returns the original payment and the same
+        `201` response. Reusing the key with a different JSON body returns
+        `422`. Object key order does not affect whether bodies are considered
+        the same; additional body properties are accepted and are part of the
+        idempotency comparison.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: A nonblank key used to make payment creation idempotent.
+          schema:
+            type: string
+          example: payment-example-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - currency
+                - card
+              properties:
+                amount:
+                  type: integer
+                  format: int64
+                  minimum: 1
+                  maximum: 9007199254740991
+                  description: Positive safe integer amount in minor currency units.
+                  example: 1250
+                currency:
+                  type: string
+                  enum:
+                    - EUR
+                    - USD
+                    - GBP
+                  example: EUR
+                card:
+                  type: string
+                  description: |
+                    Card number checked after removing ASCII spaces and hyphens;
+                    the remaining 12 to 19 digits must pass the Luhn checksum.
+                  example: '4242424242424242'
+              additionalProperties: true
+            example:
+              amount: 1250
+              currency: EUR
+              card: '4242424242424242'
+      responses:
+        '201':
+          description: Payment created, or the original result returned for an identical idempotent request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCreated'
+              example:
+                id: 550e8400-e29b-41d4-a716-446655440000
+                status: pending
+        '400':
+          description: Missing or invalid idempotency key or invalid payment fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                idempotencyKeyRequired:
+                  summary: Idempotency-Key is missing or blank
+                  value:
+                    error:
+                      code: IDEMPOTENCY_KEY_REQUIRED
+                invalidAmount:
+                  summary: Amount is not a positive safe integer
+                  value:
+                    error:
+                      code: INVALID_AMOUNT
+                invalidCurrency:
+                  summary: Currency is unsupported
+                  value:
+                    error:
+                      code: INVALID_CURRENCY
+                invalidCard:
+                  summary: Card number fails format or Luhn validation
+                  value:
+                    error:
+                      code: INVALID_CARD
+        '422':
+          description: The idempotency key has already been used with a different JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: IDEMPOTENCY_KEY_REUSED
+  /payments/{id}:
+    get:
+      summary: Retrieve a payment
+      operationId: getPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID returned when the payment was created.
+          schema:
+            type: string
+            format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: The payment was found. The card number is not returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              example:
+                id: 550e8400-e29b-41d4-a716-446655440000
+                status: pending
+                amount: 1250
+                currency: EUR
+                cardLast4: '4242'
+        '404':
+          description: No payment exists with the supplied ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: PAYMENT_NOT_FOUND
+components:
+  schemas:
+    PaymentCreated:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        status:
+          type: string
+          enum:
+            - pending
+          example: pending
+    Payment:
+      type: object
+      required:
+        - id
+        - status
+        - amount
+        - currency
+        - cardLast4
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        status:
+          type: string
+          enum:
+            - pending
+          example: pending
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9007199254740991
+          example: 1250
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+            - GBP
+          example: EUR
+        cardLast4:
+          type: string
+          pattern: '^[0-9]{4}$'
+          description: The final four digits of the card number.
+          example: '4242'
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+          properties:
+            code:
+              type: string
+              enum:
+                - IDEMPOTENCY_KEY_REQUIRED
+                - INVALID_AMOUNT
+                - INVALID_CURRENCY
+                - INVALID_CARD
+                - IDEMPOTENCY_KEY_REUSED
+                - PAYMENT_NOT_FOUND
+              example: INVALID_AMOUNT

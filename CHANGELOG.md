@@ -8,6 +8,7 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- PAY-9: Added OpenAPI documentation for the implemented health and payment endpoints and an end-to-end payment curl example.
 - PAY-8: Added a configurable signed payment status webhook notifier with bounded retries and a post-update status handler adapter.
 - PAY-7: Added capture and void operations for authorized payments, including atomic in-memory state transitions and amount validation.
 - PAY-6: Added an in-memory 3-D Secure payment challenge flow with a ten-minute timeout.

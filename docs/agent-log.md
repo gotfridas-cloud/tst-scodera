@@ -6,6 +6,7 @@ Add one entry per ticket. Record the ticket ID, agent, date (UTC), result, and i
 
 | Ticket ID | Agent | Date (UTC) | Result | Issues found |
 | --- | --- | --- | --- | --- |
+| PAY-10 | Codex | 2026-11-12 | No API response messages changed; awaiting clarification before editing. | The ticket does not identify the error cases or exact replacement messages. Current API errors contain only `error.code`, while the approved plan says to preserve the response shape. |
 | PAY-9 | Codex | 2026-11-12 | Documented the implemented API in the root OpenAPI spec and added a create-then-retrieve curl flow to the README. | OpenAPI path was unspecified in the ticket; used the repository root for `openapi.yaml`. |
 | PAY-8 | Codex | 2026-11-12 | Added a configurable HMAC-SHA256 notifier and an app-wired status update adapter that delivers after successful changes; mock receiver tests cover the trigger, signature, retries, and stop-after-success behavior. | No payment store or status route exists in this repository; any status handler must wrap its store update with `app.locals.createPaymentStatusUpdateHandler`. Event/configuration/signature conventions are provisional pending an agreed contract. Delivery is not durable across process restarts. |
 | PAY-7 | Codex | 2026-11-12 | Added full/partial capture and void routes with a transition-only payment store. | Payment creation and authorization storage are absent on `main`; the capture request amount convention is provisional and needs API contract confirmation. |

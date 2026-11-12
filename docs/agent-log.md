@@ -6,6 +6,7 @@ Add one entry per ticket. Record the ticket ID, agent, date (UTC), result, and i
 
 | Ticket ID | Agent | Date (UTC) | Result | Issues found |
 | --- | --- | --- | --- | --- |
+| PAY-9 | Codex | 2026-11-12 | Documented the implemented API in the root OpenAPI spec and added a create-then-retrieve curl flow to the README. | OpenAPI path was unspecified in the ticket; used the repository root for `openapi.yaml`. |
 | PAY-3 | Codex | 2026-11-12 | Added payment retrieval by ID with 404 handling and last-four-only card details. | None. |
 | PAY-2 | Codex | 2026-11-12 | Added payment creation with in-memory integer amounts, request validation, and idempotency handling. | Accepted test-card allowlist is not specified; card validation currently checks format and Luhn checksum only. |
 | PAY-1 | Codex | 2026-11-12 | Added Node.js 20 setup documentation, Express health endpoint, Jest/Supertest test, ESLint, and pull request CI. | `npm audit` reports low/moderate advisories in the Jest dev dependency tree; `npm audit --omit=dev` reports no production dependency vulnerabilities. |

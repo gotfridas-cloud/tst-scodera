@@ -8,6 +8,7 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- PAY-9: Added OpenAPI documentation for the implemented health and payment endpoints and an end-to-end payment curl example.
 - PAY-3: Added `GET /payments/:id` to retrieve stored payments with only the card's last four digits.
 - PAY-2: Added `POST /payments` with positive integer amount and currency validation, in-memory payment storage, and idempotency handling.
 - PAY-1: Added the Node.js 20 Express scaffold, health endpoint, Jest/Supertest coverage, ESLint configuration, and pull request CI.

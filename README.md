@@ -41,6 +41,25 @@ Create a payment with `POST http://localhost:3000/payments`. Include a unique `I
 
 Retrieve a payment with `GET http://localhost:3000/payments/{id}`. A stored payment returns HTTP 200 with its `id`, `status`, `amount`, `currency`, and `cardLast4` fields. The card number is not stored or returned; `cardLast4` contains only its final four digits. An unknown ID returns HTTP 404 with `error.code: "PAYMENT_NOT_FOUND"`.
 
+## End-to-end payment example
+
+After starting the server, this shell flow creates a payment, reads its ID from the response with Node.js, and retrieves that payment. The sample card number passes the API's current format and Luhn checks.
+
+```sh
+payment_response=$(curl --fail --silent --show-error \
+  -X POST http://localhost:3000/payments \
+  -H 'Idempotency-Key: payment-example-001' \
+  -H 'Content-Type: application/json' \
+  --data '{"amount":1250,"currency":"EUR","card":"4242424242424242"}')
+
+printf '%s\n' "$payment_response"
+payment_id=$(printf '%s' "$payment_response" | node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync(0, "utf8")).id)')
+
+curl --fail --silent --show-error "http://localhost:3000/payments/$payment_id"
+```
+
+The OpenAPI contract is in [openapi.yaml](openapi.yaml).
+
 ## Tests and lint
 
 Run the Jest test suite, which uses Supertest for HTTP requests:

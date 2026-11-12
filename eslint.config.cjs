@@ -6,6 +6,16 @@ module.exports = [
   },
   js.configs.recommended,
   {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        module: 'readonly',
+        require: 'readonly',
+      },
+    },
+  },
+  {
     files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -14,6 +24,7 @@ module.exports = [
         console: 'readonly',
         describe: 'readonly',
         expect: 'readonly',
+        jest: 'readonly',
         module: 'readonly',
         process: 'readonly',
         require: 'readonly',

@@ -20,7 +20,6 @@ function createApp({ webhookNotifier } = {}) {
     });
 
   app.get('/health', (req, response) => {
-    void req;
     response.status(200).json({ status: 'ok' });
   });
 

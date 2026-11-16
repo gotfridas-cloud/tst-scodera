@@ -2,30 +2,6 @@ const express = require('express');
 
 const supportedCurrencies = new Set(['EUR', 'USD', 'GBP']);
 
-function isValidCardNumber(card) {
-  if (typeof card !== 'string') {
-    return false;
-  }
-  const digits = card.replace(/[ -]/g, '');
-  if (!/^\d{12,19}$/.test(digits)) {
-    return false;
-  }
-  let sum = 0;
-  let shouldDouble = false;
-  for (let index = digits.length - 1; index >= 0; index -= 1) {
-    let digit = Number(digits[index]);
-    if (shouldDouble) {
-      digit *= 2;
-      if (digit > 9) {
-        digit -= 9;
-      }
-    }
-    sum += digit;
-    shouldDouble = !shouldDouble;
-  }
-  return sum % 10 === 0;
-}
-
 function createPaymentsRouter(paymentStore) {
   const router = express.Router();
 
@@ -40,7 +16,7 @@ function createPaymentsRouter(paymentStore) {
   router.post('/', (request, response) => {
     const idempotencyKey = request.get('Idempotency-Key');
     if (!idempotencyKey || idempotencyKey.trim().length === 0) {
-      return response.status(400).json({ error: { code: 'IDEMPOTENCY_KEY_REQUIRED' } });
+      return response.status(400).json({ error: { code: 'MISSING_IDEMPOTENCY_KEY', message: 'Idempotency-Key header is required' } });
     }
     const normalizedKey = idempotencyKey.trim();
     const existingRequest = paymentStore.checkIdempotency({
@@ -49,22 +25,27 @@ function createPaymentsRouter(paymentStore) {
     });
     if (existingRequest) {
       if (existingRequest.kind === 'conflict') {
-        return response.status(422).json({ error: { code: 'IDEMPOTENCY_KEY_REUSED' } });
+        return response.status(422).json({ error: { code: 'IDEMPOTENCY_CONFLICT', message: 'Idempotency-Key reused with a different request body' } });
       }
+      const p = existingRequest.payment;
       return response.status(201).json({
-        id: existingRequest.payment.id,
-        status: existingRequest.payment.status,
+        id: p.id,
+        amount: p.amount,
+        currency: p.currency,
+        card_last4: p.cardLast4,
+        status: p.status,
+        created_at: p.created_at,
       });
     }
     const { amount, currency, card } = request.body || {};
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      return response.status(400).json({ error: { code: 'INVALID_AMOUNT' } });
+      return response.status(400).json({ error: { code: 'INVALID_AMOUNT', message: 'amount must be a positive integer' } });
     }
     if (typeof currency !== 'string' || !supportedCurrencies.has(currency)) {
-      return response.status(400).json({ error: { code: 'INVALID_CURRENCY' } });
+      return response.status(400).json({ error: { code: 'INVALID_CURRENCY', message: 'currency must be EUR, USD, or GBP' } });
     }
-    if (!isValidCardNumber(card)) {
-      return response.status(400).json({ error: { code: 'INVALID_CARD' } });
+    if (typeof card !== 'string' || card.length === 0) {
+      return response.status(400).json({ error: { code: 'MISSING_CARD', message: 'card is required' } });
     }
     const result = paymentStore.create({
       idempotencyKey: normalizedKey,
@@ -74,11 +55,16 @@ function createPaymentsRouter(paymentStore) {
       body: request.body,
     });
     if (result.kind === 'conflict') {
-      return response.status(422).json({ error: { code: 'IDEMPOTENCY_KEY_REUSED' } });
+      return response.status(422).json({ error: { code: 'IDEMPOTENCY_CONFLICT', message: 'Idempotency-Key reused with a different request body' } });
     }
+    const p = result.payment;
     return response.status(201).json({
-      id: result.payment.id,
-      status: result.payment.status,
+      id: p.id,
+      amount: p.amount,
+      currency: p.currency,
+      card_last4: p.cardLast4,
+      status: p.status,
+      created_at: p.created_at,
     });
   });
 

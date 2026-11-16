@@ -19,7 +19,8 @@ function createApp({ webhookNotifier } = {}) {
       notifyPaymentStatusChanged,
     });
 
-  app.get('/health', (_request, response) => {
+  app.get('/health', (req, response) => {
+    void req;
     response.status(200).json({ status: 'ok' });
   });
 

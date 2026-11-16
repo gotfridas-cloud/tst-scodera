@@ -21,6 +21,10 @@ module.exports = [
       ecmaVersion: 'latest',
       sourceType: 'commonjs',
       globals: {
+        afterAll: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        beforeEach: 'readonly',
         console: 'readonly',
         describe: 'readonly',
         expect: 'readonly',

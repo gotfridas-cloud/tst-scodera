@@ -6,6 +6,10 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- PAY-1 (re-run): Repaired concatenated `src/app.js`, `src/paymentStore.js`, and `src/payments.js` from prior multi-agent runs; unified to a single consistent factory-based store API and clean router.
+
 ### Added
 
 - PAY-9: Added OpenAPI documentation for the implemented health and payment endpoints and an end-to-end payment curl example.

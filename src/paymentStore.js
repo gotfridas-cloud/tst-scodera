@@ -62,6 +62,7 @@ function createPaymentStore() {
         amount,
         currency,
         cardLast4: card.replace(/[ -]/g, '').slice(-4),
+        created_at: new Date().toISOString(),
       };
       payments.set(payment.id, payment);
       idempotencyEntries.set(idempotencyKey, {

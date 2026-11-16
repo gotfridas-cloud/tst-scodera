@@ -9,6 +9,7 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - PAY-1 (re-run): Repaired concatenated `src/app.js`, `src/paymentStore.js`, and `src/payments.js` from prior multi-agent runs; unified to a single consistent factory-based store API and clean router.
+- PAY-2 (re-run): Revised `POST /payments` to return the full response shape (`id`, `amount`, `currency`, `card_last4`, `status`, `created_at`), accept any non-empty string as a valid card number, and use PAY-2-spec error codes (`MISSING_CARD`, `MISSING_IDEMPOTENCY_KEY`, `IDEMPOTENCY_CONFLICT`). Added `test/pay2.test.js` with 13 acceptance tests.
 
 ### Added
 

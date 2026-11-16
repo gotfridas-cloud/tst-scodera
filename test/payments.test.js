@@ -159,7 +159,14 @@ describe('POST /payments', () => {
       .send({ amount: 1250, currency: 'EUR', card: '4242424242424242' });
 
     expect(response.status).toBe(201);
-    expect(response.body).toEqual({ id: expect.any(String), status: 'pending' });
+    expect(response.body).toMatchObject({
+      id: expect.any(String),
+      amount: 1250,
+      currency: 'EUR',
+      card_last4: expect.any(String),
+      status: 'pending',
+      created_at: expect.any(String),
+    });
 
     const storedPayment = app.locals.paymentStore.getById(response.body.id);
     expect(storedPayment.amount).toBe(1250);
@@ -170,7 +177,7 @@ describe('POST /payments', () => {
     [{ amount: 0, currency: 'EUR', card: '4242424242424242' }, 'INVALID_AMOUNT'],
     [{ amount: 10.5, currency: 'EUR', card: '4242424242424242' }, 'INVALID_AMOUNT'],
     [{ amount: 100, currency: 'CAD', card: '4242424242424242' }, 'INVALID_CURRENCY'],
-    [{ amount: 100, currency: 'EUR', card: '123456789012' }, 'INVALID_CARD'],
+    [{ amount: 100, currency: 'EUR' }, 'MISSING_CARD'],
   ])('rejects invalid payment data with a machine-readable code', async (body, code) => {
     const response = await request(app)
       .post('/payments')
@@ -208,7 +215,7 @@ describe('POST /payments', () => {
 
     expect(initialResponse.status).toBe(201);
     expect(conflictResponse.status).toBe(422);
-    expect(conflictResponse.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+    expect(conflictResponse.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
     expect(app.locals.paymentStore.size).toBe(paymentCount);
   });
 
@@ -225,7 +232,7 @@ describe('POST /payments', () => {
 
     expect(initialResponse.status).toBe(201);
     expect(conflictResponse.status).toBe(422);
-    expect(conflictResponse.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+    expect(conflictResponse.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
     expect(app.locals.paymentStore.size).toBe(paymentCount);
   });
 
@@ -240,7 +247,7 @@ describe('POST /payments', () => {
       .send({ ...initialBody, amount: 0 });
 
     expect(conflictResponse.status).toBe(422);
-    expect(conflictResponse.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+    expect(conflictResponse.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
   });
 
   test('requires an idempotency key', async () => {
@@ -249,7 +256,7 @@ describe('POST /payments', () => {
       .send({ amount: 100, currency: 'EUR', card: '4242424242424242' });
 
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    expect(response.body.error.code).toBe('MISSING_IDEMPOTENCY_KEY');
   });
 });
 
@@ -272,12 +279,13 @@ describe('GET /payments/:id', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual(storedPayment);
-      expect(response.body).toEqual({
+      expect(response.body).toMatchObject({
         id: createResponse.body.id,
         status: 'pending',
         amount: 1250,
         currency: 'EUR',
         cardLast4: '4242',
+        created_at: expect.any(String),
       });
       expect(JSON.stringify(response.body)).not.toContain('4242424242424242');
       expect(logSpies.every((spy) => spy.mock.calls.length === 0)).toBe(true);
